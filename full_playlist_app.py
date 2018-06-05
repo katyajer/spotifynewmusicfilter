@@ -201,7 +201,7 @@ currentDate = now.strftime("%Y-%m-%d")
 logging.basicConfig(filename="{}ScriptGenerator{}.log".format(config['DEFAULT']['SCRIPT_LOCATION'],currentDate),level=logging.DEBUG)
 logging.info("Started generating the playlist.")  
 
-# connect to SQLServer database for this script
+# connect to database
 cnxn = pyodbc.connect(config['DEFAULT']['DATABASE_CONNECTION'])
 
 cursor = cnxn.cursor()
@@ -265,6 +265,8 @@ cursor.execute("""select distinct t.track_id from ARTIST a
 					on a.ARTIST_ID = ag.ARTIST_ID
 					join TRACK t 
 					on t.ARTIST_ID =  a.ARTIST_ID
+					join PLAYLIST_TRACK pt 
+					on pt.TRACK_ID = t.TRACK_ID
 					where UPPER(ag.GENRE_ID) like UPPER('%RAP%')
 					or UPPER(ag.GENRE_ID) like UPPER('%HIPHOP%')
 					or UPPER(ag.GENRE_ID) like UPPER('%HIP-HOP%')
@@ -272,19 +274,25 @@ cursor.execute("""select distinct t.track_id from ARTIST a
 					or UPPER(ag.GENRE_ID) like UPPER('%reggae%')
 					or UPPER(ag.GENRE_ID) like UPPER('%ukdrill%')
 					or UPPER(ag.GENRE_ID) like UPPER('%afrobeat%') 
-					or UPPER(ag.GENRE_ID) like UPPER('%grime%')""")
-songsToProcess = []	
+					or UPPER(ag.GENRE_ID) like UPPER('%grime%')
+					and pt.ADDED_AT > GETDATE() - 5""")
+songsToAdd = []	
+
 for songId in cursor.fetchall():
-	songsToProcess.append(songId[0])
- 
+	songsToAdd.append(songId[0])
+
 if config['DEFAULT']['POPULATE_EXISTING_PLAYLIST'] == 'False':
-	createPlaylist(list(set(songsToProcess))) 
+	createPlaylist(list(set(songsToAdd))) 
 else:
 	r = requests.get('https://api.spotify.com/v1/users/{}/playlists/{}'.format(config['DEFAULT']['MY_SPOTIFY_USER'],config['DEFAULT']['PLAYLIST_ID_POPULATED']), headers=authHeader())
 	playlistObject = r.json()
-
-	deleteTracksFromPlaylist(config['DEFAULT']['PLAYLIST_ID_POPULATED'],songsToProcess)	
-	addTracksToPlaylist(config['DEFAULT']['PLAYLIST_ID_POPULATED'],songsToProcess)			
+	tracksObject = playlistObject['tracks']
+	songsToDelete = []	
+	for x in range(0, tracksObject['total']):
+		songsToDelete.append(tracksObject['items'][x]['track']['id'])
+		
+	deleteTracksFromPlaylist(config['DEFAULT']['PLAYLIST_ID_POPULATED'],songsToDelete)	
+	addTracksToPlaylist(config['DEFAULT']['PLAYLIST_ID_POPULATED'],songsToAdd)			
 
 cnxn.close()
 logging.info("Finished generating the playlist.")  
