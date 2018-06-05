@@ -202,10 +202,7 @@ logging.basicConfig(filename="{}ScriptGenerator{}.log".format(config['DEFAULT'][
 logging.info("Started generating the playlist.")  
 
 # connect to SQLServer database for this script
-cnxn = pyodbc.connect("Driver={SQL Server Native Client 11.0};"
-                      "Server=katyaj;"
-                      "Database=playground;"
-                      "Trusted_Connection=yes;")
+cnxn = pyodbc.connect(config['DEFAULT']['DATABASE_CONNECTION'])
 
 cursor = cnxn.cursor()
 
