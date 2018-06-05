@@ -5,7 +5,9 @@ Simple app that filters Official Spotify Playlist and creates a new Playlist bas
 How the app works.
 
 
-
+### Original Idea
+Inspired by this project. 
+https://github.com/mileshenrichs/spotify-playlist-generator
 
 
 
