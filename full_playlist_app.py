@@ -6,293 +6,354 @@ import logging
 import configparser
 
 # ====================== METHOD DEFINITIONS ========================
-def authHeader():
-    return {'Authorization': 'Bearer {}'.format(spotifyToken)}
+def auth_header():
+    return {'Authorization': 'Bearer {}'.format(spotify_token)}
 
 # obtain new Spotify access token using refresh_token
-def getNewAccessToken():
-	basicToken = config['DEFAULT']['ENCODED_BASIC_TOKEN']
-	refreshToken = config['DEFAULT']['REFRESH_TOKEN']
+def get_new_access_token():
+	basic_token = config['DEFAULT']['ENCODED_BASIC_TOKEN']
+	refresh_token = config['DEFAULT']['REFRESH_TOKEN']
 
-	reqHeader = {'Authorization': 'Basic {}'.format(basicToken)}
-	reqBody = {'grant_type': 'refresh_token', 'refresh_token': refreshToken}
-	r = requests.post('https://accounts.spotify.com/api/token', headers=reqHeader, data=reqBody)
-	resJson = r.json()
+	req_header = {'Authorization': 'Basic {}'.format(basic_token)}
+	req_body = {'grant_type': 'refresh_token', 'refresh_token': refresh_token}
+	r = requests.post('https://accounts.spotify.com/api/token', headers=req_header, data=req_body)
+	res_json = r.json()
 		
-	newToken = resJson['access_token']
-	# update token in db
-	cursor.execute("UPDATE tokens SET value = ? WHERE token_type = 'access_token'", (newToken,))
+	new_token = res_json['access_token']
+	# update token in the database
+	cursor.execute("UPDATE tokens SET value = ? WHERE token_type = 'access_token'", (new_token))
 	logging.info("Generated new access token.") 
 	cnxn.commit()
 
-	return newToken
+	return new_token
 	
-# Populates Playlist details based on the Playlist object
-def populatePlaylist(playlistObject):
-	PLAYLIST_NAME = playlistObject['name']
-	PLAYLIST_ID = playlistObject['id']
-	COLLABORATIVE = playlistObject['collaborative']	
-	SNAPSHOT_ID = playlistObject['snapshot_id']
-	Description = playlistObject['description']
-	HREF = playlistObject['href']
-	PUB = playlistObject['public']
-	URI = playlistObject['uri']
-	USER_ID = playlistObject['owner']['id']	
+# populate playlist details based on the playlist object
+def populate_playlist(playlist_object):
+	playlist_name = playlist_object['name']
+	playlist_id = playlist_object['id']
+	collaborative = playlist_object['collaborative']	
+	snapshot_id = playlist_object['snapshot_id']
+	description = playlist_object['description']
+	href = playlist_object['href']
+	pub = playlist_object['public']
+	uri = playlist_object['uri']
+	user_id = playlist_object['owner']['id']	
 	try:        
-		cursor.execute("INSERT INTO PLAYLIST (PLAYLIST_NAME, PLAYLIST_ID, COLLABORATIVE, SNAPSHOT_ID, Description, HREF, PUB, URI, USER_ID) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", (PLAYLIST_NAME, PLAYLIST_ID, COLLABORATIVE, SNAPSHOT_ID, Description, HREF, PUB, URI, USER_ID))
-		logging.info("Created new entry for playlist {}.".format(PLAYLIST_ID)) 
+		cursor.execute("INSERT INTO PLAYLIST (PLAYLIST_NAME, PLAYLIST_ID, COLLABORATIVE, SNAPSHOT_ID, DESCRIPTION, HREF, PUB, URI, USER_ID) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", (playlist_name, playlist_id, collaborative, snapshot_id, description, href, pub, uri, user_id))
+		logging.info("Created new entry for playlist {}.".format(playlist_id)) 
 		cnxn.commit()
 	except pyodbc.IntegrityError:
-		logging.warning("Violation of PRIMARY KEY constraint for playlist {}.".format(PLAYLIST_ID))
+		logging.warning("Violation of PRIMARY KEY constraint for playlist {}.".format(playlist_id))
 	except: 
 		logging.warning(sys.exc_info())
-		logging.warning("Was not able to insert data for playlist {}.".format(PLAYLIST_ID)) 
+		logging.warning("Was not able to insert data for playlist {}.".format(playlist_id)) 
 		
-# Populates Playlist Track based on the Playlist object
-def populatePlaylistTrack(playlistTrack, playlistId):
-	PLAYLIST_ID = playlistId
-	TRACK_ID = playlistTrack['track']['id']	
-	IS_LOCAL = playlistTrack['is_local']
-	ADDED_BY = playlistTrack['added_by']['id']
-	ADDED_AT = playlistTrack['added_at']
+# populate playlist track based on the playlist_id and track object
+def populate_playlist_track(playlist_track, playlist_id):
+	track_id = playlist_track['track']['id']	
+	is_local = playlist_track['is_local']
+	added_by = playlist_track['added_by']['id']
+	added_at = playlist_track['added_at']
 	try:        
-		cursor.execute("INSERT INTO PLAYLIST_TRACK (PLAYLIST_ID, TRACK_ID, IS_LOCAL, ADDED_BY, ADDED_AT) VALUES (?,?,?,?,?)", (PLAYLIST_ID, TRACK_ID, IS_LOCAL, ADDED_BY, ADDED_AT))
-		logging.info("Created new entry for playlist-track {} for playlist {}.".format(playlistTrack['track']['name'], PLAYLIST_ID)) 
+		cursor.execute("INSERT INTO PLAYLIST_TRACK (PLAYLIST_ID, TRACK_ID, IS_LOCAL, ADDED_BY, ADDED_AT) VALUES (?,?,?,?,?)", (playlist_id, track_id, is_local, added_by, added_at))
+		logging.info("Created new entry for playlist-track {} for playlist {}.".format(playlist_track['track']['name'], playlist_id)) 
 		cnxn.commit()
 	except pyodbc.IntegrityError:
-		logging.warning("Violation of PRIMARY KEY constraint for track {} in playlist {}.".format(playlistTrack['track']['name'], PLAYLIST_ID))
+		logging.warning("Violation of PRIMARY KEY constraint for track {} in playlist {}.".format(playlist_track['track']['name'], playlist_id))
 	except: 
 		logging.warning(sys.exc_info())
-		logging.warning("Was not able to insert data for track {} in playlist {}.".format(playlistTrack['track']['name'], PLAYLIST_ID)) 
-		
-def populateTrack(trackObject):
-	TRACK_NAME = trackObject['name']
-	TRACK_ID = trackObject['id']
-	duration_ms = trackObject['duration_ms']
-	EXPLICIT = trackObject['explicit']
-	HREF = trackObject['href']
-	POPULARITY = trackObject['popularity']
-	URI = trackObject['uri']
-	ALBUM_ID = trackObject['album']['id']
-	ARTIST_NUM = len(trackObject['artists'])
-	ARTIST_ID = trackObject['artists'][0]['id']
-	ARTIST_ID2 = None
-	ARTIST_ID3 = None
-	ARTIST_ID4 = None
-	if ARTIST_NUM > 2:
-		ARTIST_ID2 = trackObject['artists'][1]['id']
-	if ARTIST_NUM > 3:
-		ARTIST_ID3 = trackObject['artists'][2]['id']
-	if ARTIST_NUM > 4:
-		ARTIST_ID4 = trackObject['artists'][3]['id']
-	try:        
-		cursor.execute("INSERT INTO TRACK (TRACK_NAME, TRACK_ID, duration_ms, EXPLICIT, HREF, POPULARITY, URI, ALBUM_ID, ARTIST_ID, ARTIST_ID2, ARTIST_ID3, ARTIST_ID4) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (TRACK_NAME, TRACK_ID, duration_ms, EXPLICIT, HREF, POPULARITY, URI, ALBUM_ID, ARTIST_ID, ARTIST_ID2, ARTIST_ID3, ARTIST_ID4))
-		logging.info("Created new entry for track {} by {}.".format(TRACK_NAME, trackObject['artists'][0]['name'])) 
-		cnxn.commit()
-	except pyodbc.IntegrityError:
-		logging.warning("Violation of PRIMARY KEY constraint for track {} by {}.".format(TRACK_NAME, trackObject['artists'][0]['name']))
-	except: 
-		logging.warning(sys.exc_info())
-		logging.warning("Was not able to insert data for track {} by {}.".format(TRACK_NAME, trackObject['artists'][0]['name'])) 	
-		
-def populateArtist(artistObject):		
-	ARTIST_NAME = artistObject['name']
-	ARTIST_ID = artistObject['id']
-	HREF = artistObject['href']
-	POPULARITY = artistObject['popularity']
-	URI= artistObject['uri']
-	try:        
-		cursor.execute("INSERT INTO ARTIST (ARTIST_NAME, ARTIST_ID, HREF, POPULARITY, URI) VALUES (?, ?, ?, ?, ?)", (ARTIST_NAME, ARTIST_ID, HREF, POPULARITY, URI))
-		logging.info("Created new entry for atist {}.".format(ARTIST_NAME))  
-		cnxn.commit()
-	except pyodbc.IntegrityError:
-		logging.warning("Violation of PRIMARY KEY constraint for artist {}.".format(ARTIST_NAME))
-	except: 
-		logging.warning(sys.exc_info())
-		logging.warning("Was not able to insert data for artist {}.".format(ARTIST_NAME)) 		
-	
-def populateGenre(artistObject):
-	ARTIST_ID = artistObject['id']
-	GENRE_NUM = len(artistObject['genres'])
-	for genre in artistObject['genres']:
-		GENRE_ID = genre.upper().replace(" ", "")
-		GENRE_NAME = genre
-		try: 
-			cursor.execute("SELECT count(*) FROM GENRE WHERE GENRE_ID = ?", (GENRE_ID))
-			genreExists = cursor.fetchone()[0]
+		logging.warning("Was not able to insert data for track {} in playlist {}.".format(playlist_track['track']['name'], playlist_id)) 
 
-			if genreExists == 0:
-				cursor.execute("INSERT INTO GENRE (GENRE_ID, GENRE_NAME) VALUES (?, ?)", (GENRE_ID, GENRE_NAME))
-				logging.info("Created new entry for genre {}.".format(GENRE_NAME)) 
-			cursor.execute("SELECT count(*) FROM ARTIST_GENRE WHERE GENRE_ID = ? and ARTIST_ID = ?", (GENRE_ID, ARTIST_ID))
+# populate track based on the track object		
+def populate_track(track_object):
+	track_name = track_object['name']
+	track_id = track_object['id']
+	duration_ms = track_object['duration_ms']
+	explicit = track_object['explicit']
+	href = track_object['href']
+	popularity = track_object['popularity']
+	uri = track_object['uri']
+	album_id = track_object['album']['id']
+	artist_num = len(track_object['artists'])
+	artist_id = track_object['artists'][0]['id']
+	artist_id2 = None
+	artist_id3 = None
+	artist_id4 = None
+	if artist_num > 2:
+		artist_id2 = track_object['artists'][1]['id']
+	if artist_num > 3:
+		artist_id3 = track_object['artists'][2]['id']
+	if artist_num > 4:
+		artist_id4 = track_object['artists'][3]['id']
+	try:        
+		cursor.execute("INSERT INTO TRACK (TRACK_NAME, TRACK_ID, duration_ms, EXPLICIT, HREF, POPULARITY, URI, ALBUM_ID, ARTIST_ID, ARTIST_ID2, ARTIST_ID3, ARTIST_ID4) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (track_name, track_id, duration_ms, explicit, href, popularity, uri, album_id, artist_id, artist_id2, artist_id3, artist_id4))
+		logging.info("Created new entry for track {} by {}.".format(track_name, track_object['artists'][0]['name'])) 
+		cnxn.commit()
+	except pyodbc.IntegrityError:
+		logging.warning("Violation of PRIMARY KEY constraint for track {} by {}.".format(track_name, track_object['artists'][0]['name']))
+	except: 
+		logging.warning(sys.exc_info())
+		logging.warning("Was not able to insert data for track {} by {}.".format(track_name, track_object['artists'][0]['name'])) 	
+
+# populate artist based on the artist object			
+def populate_artist(artist_object):		
+	artist_name = artist_object['name']
+	artist_id = artist_object['id']
+	href = artist_object['href']
+	popularity = artist_object['popularity']
+	uri= artist_object['uri']
+	try:        
+		cursor.execute("INSERT INTO ARTIST (ARTIST_NAME, ARTIST_ID, HREF, POPULARITY, URI) VALUES (?, ?, ?, ?, ?)", (artist_name, artist_id, href, popularity, uri))
+		logging.info("Created new entry for atist {}.".format(artist_name))  
+		cnxn.commit()
+	except pyodbc.IntegrityError:
+		logging.warning("Violation of PRIMARY KEY constraint for artist {}.".format(artist_name))
+	except: 
+		logging.warning(sys.exc_info())
+		logging.warning("Was not able to insert data for artist {}.".format(artist_name)) 		
+
+# populate genres based on the artist object			
+def populate_genre(artist_object):
+	artist_id = artist_object['id']
+	for genre in artist_object['genres']:
+		genre_id = genre.upper().replace(" ", "")
+		genre_name = genre
+		try: 
+			cursor.execute("SELECT count(*) FROM GENRE WHERE GENRE_ID = ?", (genre_id))
+			genre_exists = cursor.fetchone()[0]
+
+			if genre_exists == 0:
+				cursor.execute("INSERT INTO GENRE (GENRE_ID, GENRE_NAME) VALUES (?, ?)", (genre_id, genre_name))
+				logging.info("Created new entry for genre {}.".format(genre_name)) 
+			cursor.execute("SELECT count(*) FROM ARTIST_GENRE WHERE GENRE_ID = ? and ARTIST_ID = ?", (genre_id, artist_id))
 			genreArtistsExists = cursor.fetchone()[0]
 			if genreArtistsExists == 0:
-				cursor.execute("INSERT INTO ARTIST_GENRE (GENRE_ID, ARTIST_ID) VALUES (?, ?)", (GENRE_ID, ARTIST_ID))
-				logging.info("Created new entry for artist {} genre {}.".format(artistObject['name'], GENRE_NAME)) 
+				cursor.execute("INSERT INTO ARTIST_GENRE (GENRE_ID, ARTIST_ID) VALUES (?, ?)", (genre_id, artist_id))
+				logging.info("Created new entry for artist {} genre {}.".format(artist_object['name'], genre_name)) 
 			cnxn.commit()
 		except pyodbc.IntegrityError:
-			logging.warning("Violation of PRIMARY KEY constraint for artist {} and genre {}.".format(artistObject['name'],GENRE_NAME))
+			logging.warning("Violation of PRIMARY KEY constraint for artist {} and genre {}.".format(artist_object['name'],genre_name))
 		except: 
 			logging.warning(sys.exc_info())
-			logging.warning("Was not able to insert data for artist {} and genre {}.".format(artistObject['name'],GENRE_NAME)) 		
-			
-def createPlaylist(songIds):
+			logging.warning("Was not able to insert data for artist {} and genre {}.".format(artist_object['name'],genre_name)) 		
+
+# send requests and populate genres based on the artist name from LastFM
+def popolate_genre_lastfm(artist_id,artist_name):
+	try:
+		request = '/2.0/?method=artist.getinfo&artist={}&api_key={}&format=json'.format(artist_name,api_key)
+		r = requests.get(api_url + request)
+		lfreq = r.json()
+
+		for x in range(0,len(lfreq['artist']['tags']['tag'])):
+			genre = lfreq['artist']['tags']['tag'][x]['name']
+			# populate 
+			populate_genre_table(artist_id,artist_name,genre)
+	except:		
+		logging.warning(sys.exc_info())	
+		logging.warning(lfreq['error'])			
+
+# populate genres based on the artist_id and genre from LastFM	
+def populate_genre_table(artist_id, artist_name, genre):
+	genre_id = genre.upper().replace(" ", "")
+	genre_name = genre
+	try: 
+		cursor.execute("SELECT count(*) FROM GENRE WHERE GENRE_ID = ?", (genre_id))
+		genreExists = cursor.fetchone()[0]
+
+		if genreExists != 0:
+			cursor.execute("SELECT count(*) FROM ARTIST_GENRE WHERE GENRE_ID = ? and ARTIST_ID = ?", (genre_id, artist_id))
+			genreArtistsExists = cursor.fetchone()[0]
+			if genreArtistsExists == 0:
+				cursor.execute("INSERT INTO ARTIST_GENRE (GENRE_ID, ARTIST_ID) VALUES (?, ?)", (genre_id, artist_id))
+				logging.info("Created new entry for artist {} genre {}.".format(artist_name, genre_name)) 
+		cnxn.commit()
+	except pyodbc.IntegrityError:
+		logging.warning("Violation of PRIMARY KEY constraint for artist {} and genre {}.".format(artist_name,genre_name))
+	except: 
+		logging.warning(sys.exc_info())
+		logging.warning("Was not able to insert data for artist {} and genre {}.".format(artist_name,genre_name)) 		
+		
+# create a new playlist and populate it
+def create_playlist(song_ids):
+	# playlist details as specified in the config file
 	playlistName = config['DEFAULT']['NEW_PLAYLIST_NAME']
 	playlistDescription = config['DEFAULT']['NEW_PLAYLIST_DESCRIPTION']
 	
-	reqHeader = {'Authorization': 'Bearer {}'.format(spotifyToken), 'Content-Type': 'application/json'}
-	reqBody = {'name': playlistName, 'description': playlistDescription}
-	r = requests.post('https://api.spotify.com/v1/users/{}/playlists'.format(config['DEFAULT']['MY_SPOTIFY_USER']), headers=reqHeader, json=reqBody)
-	playlistObject = r.json()
-	newPlaylistId = r.json()['id']	
+	req_header = {'Authorization': 'Bearer {}'.format(spotify_token), 'Content-Type': 'application/json'}
+	req_body = {'name': playlistName, 'description': playlistDescription}
+	r = requests.post('https://api.spotify.com/v1/users/{}/playlists'.format(config['DEFAULT']['MY_SPOTIFY_USER']), headers=req_header, json=req_body)
+	playlist_object = r.json()
+	newplaylist_id = r.json()['id']	
 
 	if r.status_code in [200, 201]:
-		#create record in db for new playlist
-		populatePlaylist(playlistObject)
+		# create record in the database for new playlist
+		populate_playlist(playlist_object)
 		logging.info("Successfully created new playlist {}.".format(r.json()['id'])) 		
 		cnxn.commit()
 	else:
 		logging.warning("Failed to create new playlist.")
-	#add tracks to playlist
-	addTracksToPlaylist(newPlaylistId, songIds)			
+	# add tracks to playlist
+	add_tracks_to_playlist(newplaylist_id, song_ids)			
 
-# place tracks with given ids into Spotify playlist with given id and name
-def addTracksToPlaylist(playlistId, songIdsToAdd):
-	# songIdsToAdd = []
-	# for songId in songIds:
-		# songIdsToAdd.append(songId[0])
-
+# add tracks into Spotify playlist
+def add_tracks_to_playlist(playlist_id, song_ids_to_add):
     # send request to add tracks to Spotify playlist
-	reqHeader = {'Authorization': 'Bearer {}'.format(spotifyToken), 'Content-Type': 'application/json'}
-	reqBody = {'uris': list(map((lambda songId: 'spotify:track:' + songId), songIdsToAdd))}
+	req_header = {'Authorization': 'Bearer {}'.format(spotify_token), 'Content-Type': 'application/json'}
+	req_body = {'uris': list(map((lambda song_id: 'spotify:track:' + song_id), song_ids_to_add))}
 
-	r = requests.post('https://api.spotify.com/v1/users/{}/playlists/{}/tracks'.format(config['DEFAULT']['MY_SPOTIFY_USER'], playlistId), headers=reqHeader, json=reqBody)
+	r = requests.post('https://api.spotify.com/v1/users/{}/playlists/{}/tracks'.format(config['DEFAULT']['MY_SPOTIFY_USER'], playlist_id), headers=req_header, json=req_body)
 
 	if r.status_code in [200, 201]:
-		logging.info("Successfully added songs {} to playlist {}.".format(songIdsToAdd, playlistId)) 		
+		logging.info("Successfully added songs {} to playlist {}.".format(song_ids_to_add, playlist_id)) 		
 	else:
-		logging.warning("Failed to add songs {} to playlist {}.".format(songIdsToAdd, playlistId))
-		
-def deleteTracksFromPlaylist(playlistId, songIdsToAdd):
-	# songIdsToAdd = []
-	# for songId in songIds:
-		# songIdsToAdd.append(songId[0])
+		logging.warning("Failed to add songs {} to playlist {}.".format(song_ids_to_add, playlist_id))
 
+# delete tracks from Spotify playlist		
+def delete_tracks_from_playlist(playlist_id, song_ids_to_add):
     # send request to add tracks to Spotify playlist
-	reqHeader = {'Authorization': 'Bearer {}'.format(spotifyToken), 'Content-Type': 'application/json'}
-	reqBody = {'uris': list(map((lambda songId: 'spotify:track:' + songId), songIdsToAdd))}
+	req_header = {'Authorization': 'Bearer {}'.format(spotify_token), 'Content-Type': 'application/json'}
+	req_body = {'uris': list(map((lambda song_id: 'spotify:track:' + song_id), song_ids_to_add))}
 
-	r = requests.delete('https://api.spotify.com/v1/users/{}/playlists/{}/tracks'.format(config['DEFAULT']['MY_SPOTIFY_USER'], playlistId), headers=reqHeader, json=reqBody)
+	r = requests.delete('https://api.spotify.com/v1/users/{}/playlists/{}/tracks'.format(config['DEFAULT']['MY_SPOTIFY_USER'], playlist_id), headers=req_header, json=req_body)
 	if r.status_code in [200, 201]:
-		logging.info("Successfully deleted songs {} from playlist {}.".format(songIdsToAdd, playlistId)) 	
+		logging.info("Successfully deleted songs {} from playlist {}.".format(song_ids_to_add, playlist_id)) 	
 	else:
-		logging.warning("Failed to delete songs {} to playlist {}.".format(songIdsToAdd, playlistId))				
+		logging.warning("Failed to delete songs {} to playlist {}.".format(song_ids_to_add, playlist_id))				
 	
 # ====================== BEGIN SCRIPT ========================
 
-# read config values
+# read config file
 config = configparser.ConfigParser()
-config.read('config.ini')
+
+# name of the config file is passed as the first command line argument
+config.read(str(sys.argv[1]))
 
 # start writing into the log file
 now = datetime.datetime.now()
-currentDate = now.strftime("%Y-%m-%d")
+current_date = now.strftime("%Y-%m-%d")
 
-logging.basicConfig(filename="{}ScriptGenerator{}.log".format(config['DEFAULT']['SCRIPT_LOCATION'],currentDate),level=logging.DEBUG)
+logging.basicConfig(filename="{}ScriptGenerator{}.log".format(config['DEFAULT']['SCRIPT_LOCATION'],current_date),level=logging.DEBUG)
 logging.info("Started generating the playlist.")  
 
-# connect to database
+# connect to the database
 cnxn = pyodbc.connect(config['DEFAULT']['DATABASE_CONNECTION'])
 
 cursor = cnxn.cursor()
 
 # fetch Spotify access token 
 cursor.execute("SELECT value FROM tokens WHERE token_type = 'access_token'")
-spotifyToken = cursor.fetchone()[0]
+spotify_token = cursor.fetchone()[0]
 
 
 # first, test current access token
-testRequest = requests.get('https://api.spotify.com/v1/me', headers=authHeader())
+test_request = requests.get('https://api.spotify.com/v1/me', headers=auth_header())
 # if unauthorized, need to refresh access token
-if testRequest.status_code in [401, 403]:
-	spotifyToken = getNewAccessToken()
+if test_request.status_code in [401, 403]:
+	spotify_token = get_new_access_token()
 
-
-#Get Songs from New Music Friday
+# populate variables needed to send requests to Spotify and LastFM
 user_id = config['DEFAULT']['SPOTIFY_USER']
 playlist_id = config['DEFAULT']['PLAYLIST_ID']
+api_url = config['DEFAULT']['LASTFM_URL']
+api_key = config['DEFAULT']['LASTFM_KEY']
 
-r = requests.get('https://api.spotify.com/v1/users/{}/playlists/{}'.format(user_id,playlist_id), headers=authHeader())
-playlistObject = r.json()
+# get songs from the original playlist 
+r = requests.get('https://api.spotify.com/v1/users/{}/playlists/{}'.format(user_id,playlist_id), headers=auth_header())
+playlist_object = r.json()
 
-# Populate the data about the updated playlist
-tracksObject = playlistObject['tracks']
-populatePlaylist(playlistObject)
+# populate data about the playlist and tracks
+tracks_object = playlist_object['tracks']
+populate_playlist(playlist_object)
 
-for x in range(0, tracksObject['total']):
-	populateTrack(tracksObject['items'][x]['track'])
-	populatePlaylistTrack(tracksObject['items'][x],playlistObject['id'])
+for x in range(0, tracks_object['total']):
+	if x != 69:
+		populate_track(tracks_object['items'][x]['track'])
+		populate_playlist_track(tracks_object['items'][x],playlist_object['id'])
 	
-#Populate the data about artist and genre
-sql_query = """WITH artist_table (artist_id_comb) 
-					AS (
-					select distinct t.ARTIST_ID from track t
-					where t.ARTIST_ID is not null
-					union all
-					select distinct t.ARTIST_ID2 from track t
-					where t.ARTIST_ID2 is not null
-					union all
-					select distinct t.ARTIST_ID3 from track t
-					where t.ARTIST_ID3 is not null
-					union all
-					select distinct t.ARTIST_ID4 from track t
-					where t.ARTIST_ID4 is not null) 
-					select artist_id_comb
-					from artist_table
-					left join ARTIST a
-					on a.ARTIST_ID = artist_table.artist_id_comb
-					where a.ARTIST_ID is null"""
+# populate data about artists and genres
+# pick artist_ids from tracks that do not have an entry in the artists table yet
+sql_query = """WITH artist_table (artist_id_comb)
+				AS (
+					SELECT DISTINCT t.ARTIST_ID
+					FROM track t
+					WHERE t.ARTIST_ID IS NOT NULL
+					
+					UNION ALL
+					
+					SELECT DISTINCT t.ARTIST_ID2
+					FROM track t
+					WHERE t.ARTIST_ID2 IS NOT NULL
+					
+					UNION ALL
+					
+					SELECT DISTINCT t.ARTIST_ID3
+					FROM track t
+					WHERE t.ARTIST_ID3 IS NOT NULL
+					
+					UNION ALL
+					
+					SELECT DISTINCT t.ARTIST_ID4
+					FROM track t
+					WHERE t.ARTIST_ID4 IS NOT NULL
+					)
+				SELECT artist_id_comb
+				FROM artist_table
+				LEFT JOIN ARTIST a ON a.ARTIST_ID = artist_table.artist_id_comb
+				WHERE a.ARTIST_ID IS NULL"""
+				
 rows = cursor.execute(sql_query).fetchall()
 
+# for each artist populate data about artist, genre
 for row in rows:
-	r = requests.get('https://api.spotify.com/v1/artists/{}'.format(row[0]), headers=authHeader())
-	artistObject = r.json()
-	populateArtist(artistObject)
-	populateGenre(artistObject)
+	r = requests.get('https://api.spotify.com/v1/artists/{}'.format(row[0]), headers=auth_header())
+	artist_object = r.json()
+	populate_artist(artist_object)
+	# Spotify does not always have all genre data, so checking against LastFM
+	populate_genre(artist_object)
+	popolate_genre_lastfm(row[0],artist_object['name'])
 
-cursor.execute("""select distinct t.track_id from ARTIST a
-					join ARTIST_GENRE ag
-					on a.ARTIST_ID = ag.ARTIST_ID
-					join TRACK t 
-					on t.ARTIST_ID =  a.ARTIST_ID
-					join PLAYLIST_TRACK pt 
-					on pt.TRACK_ID = t.TRACK_ID
-					where UPPER(ag.GENRE_ID) like UPPER('%RAP%')
-					or UPPER(ag.GENRE_ID) like UPPER('%HIPHOP%')
-					or UPPER(ag.GENRE_ID) like UPPER('%HIP-HOP%')
-					or UPPER(ag.GENRE_ID) like UPPER('%dancehall%')
-					or UPPER(ag.GENRE_ID) like UPPER('%reggae%')
-					or UPPER(ag.GENRE_ID) like UPPER('%ukdrill%')
-					or UPPER(ag.GENRE_ID) like UPPER('%afrobeat%') 
-					or UPPER(ag.GENRE_ID) like UPPER('%grime%')
-					and pt.ADDED_AT > GETDATE() - 5""")
-songsToAdd = []	
+# query picks up tracks from the original playlist that were added to that playlist during the week	
+# query filters playlist tracks based on the chosen music genres
+cursor.execute("""SELECT DISTINCT t.TRACK_ID
+					FROM PLAYLIST_TRACK pt
+					JOIN TRACK t ON pt.TRACK_ID = t.TRACK_ID
+					LEFT JOIN ARTIST a ON a.ARTIST_ID = t.ARTIST_ID
+						OR a.ARTIST_ID = t.ARTIST_ID2
+						OR a.ARTIST_ID = t.ARTIST_ID3
+						OR a.ARTIST_ID = t.ARTIST_ID4
+					JOIN ARTIST_GENRE ag ON a.ARTIST_ID = ag.ARTIST_ID
+					WHERE (
+							UPPER(ag.GENRE_ID) LIKE UPPER('%RAP%')
+							OR UPPER(ag.GENRE_ID) LIKE UPPER('%HIPHOP%')
+							OR UPPER(ag.GENRE_ID) LIKE UPPER('%HIP-HOP%')
+							OR UPPER(ag.GENRE_ID) LIKE UPPER('%dancehall%')
+							OR UPPER(ag.GENRE_ID) LIKE UPPER('%reggae%')
+							OR UPPER(ag.GENRE_ID) LIKE UPPER('%ukdrill%')
+							OR UPPER(ag.GENRE_ID) LIKE UPPER('%afrobeat%')
+							OR UPPER(ag.GENRE_ID) LIKE UPPER('%grime%')
+							)
+						AND pt.ADDED_AT > GETDATE() - 7
+						AND pt.playlist_id = ?
+					""",(playlist_id))
+songs_to_add = []	
 
-for songId in cursor.fetchall():
-	songsToAdd.append(songId[0])
+# use the track list to create or update the playlist based on the information in the config file
+for song_id in cursor.fetchall():
+	songs_to_add.append(song_id[0])
 
 if config['DEFAULT']['POPULATE_EXISTING_PLAYLIST'] == 'False':
-	createPlaylist(list(set(songsToAdd))) 
+	create_playlist(list(set(songs_to_add))) 
 else:
-	r = requests.get('https://api.spotify.com/v1/users/{}/playlists/{}'.format(config['DEFAULT']['MY_SPOTIFY_USER'],config['DEFAULT']['PLAYLIST_ID_POPULATED']), headers=authHeader())
-	playlistObject = r.json()
-	tracksObject = playlistObject['tracks']
-	songsToDelete = []	
-	for x in range(0, tracksObject['total']):
-		songsToDelete.append(tracksObject['items'][x]['track']['id'])
+	r = requests.get('https://api.spotify.com/v1/users/{}/playlists/{}'.format(config['DEFAULT']['MY_SPOTIFY_USER'],config['DEFAULT']['PLAYLIST_ID_POPULATED']), headers=auth_header())
+	playlist_object = r.json()
+	tracks_object = playlist_object['tracks']
+	# delete songs from the existing playlist before adding new ones
+	songs_to_delete = []	
+	for x in range(0, tracks_object['total']):
+		songs_to_delete.append(tracks_object['items'][x]['track']['id'])
 		
-	deleteTracksFromPlaylist(config['DEFAULT']['PLAYLIST_ID_POPULATED'],songsToDelete)	
-	addTracksToPlaylist(config['DEFAULT']['PLAYLIST_ID_POPULATED'],songsToAdd)			
+	delete_tracks_from_playlist(config['DEFAULT']['PLAYLIST_ID_POPULATED'],songs_to_delete)	
+	add_tracks_to_playlist(config['DEFAULT']['PLAYLIST_ID_POPULATED'],songs_to_add)			
 
 cnxn.close()
 logging.info("Finished generating the playlist.")  

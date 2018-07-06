@@ -1,0 +1,4 @@
+CREATE TABLE GENRE(
+	[GENRE_ID] [nchar](100) NOT NULL,
+	[GENRE_NAME] [nchar](100) NOT NULL
+)
