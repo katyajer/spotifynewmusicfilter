@@ -29,29 +29,30 @@ def get_new_access_token():
 
 # populate genre table based on artist object from Spotify
 def populate_genre(artist_object):
-	artist_id = artist_object['id']
-	genre_num = len(artist_object['genres'])
-	for genre in artist_object['genres']:
-		genre_id = genre.upper().replace(" ", "")
-		genre_name = genre
-		try: 
+	try:
+		artist_id = artist_object['id']
+		genre_num = len(artist_object['genres'])
+		for genre in artist_object['genres']:
+			genre_id = genre.upper().replace(" ", "")
+			genre_name = genre
+	 
 			cursor.execute("SELECT count(*) FROM GENRE WHERE GENRE_ID = ?", (genre_id))
 			genreExists = cursor.fetchone()[0]
 
 			if genreExists == 0:
 				cursor.execute("INSERT INTO GENRE (GENRE_ID, GENRE_NAME) VALUES (?, ?)", (genre_id, genre_name))
 				logging.info("Created new entry for genre {}.".format(genre_name)) 
-			cursor.execute("SELECT count(*) FROM ARTIST_GENRE WHERE GENRE_ID = ? and ARTIST_ID = ?", (genre_id, artist_id))
-			genreArtistsExists = cursor.fetchone()[0]
-			if genreArtistsExists == 0:
-				cursor.execute("INSERT INTO ARTIST_GENRE (GENRE_ID, ARTIST_ID) VALUES (?, ?)", (genre_id, artist_id))
-				logging.info("Created new entry for artist {} genre {}.".format(artist_object['name'], genre_name)) 
+				cursor.execute("SELECT count(*) FROM ARTIST_GENRE WHERE GENRE_ID = ? and ARTIST_ID = ?", (genre_id, artist_id))
+				genreArtistsExists = cursor.fetchone()[0]
+				if genreArtistsExists == 0:
+					cursor.execute("INSERT INTO ARTIST_GENRE (GENRE_ID, ARTIST_ID) VALUES (?, ?)", (genre_id, artist_id))
+					logging.info("Created new entry for artist {} genre {}.".format(artist_object['name'], genre_name)) 
 			cnxn.commit()
-		except pyodbc.IntegrityError:
-			logging.warning("Violation of PRIMARY KEY constraint for artist {} and genre {}.".format(artist_object['name'],genre_name))
-		except: 
-			logging.warning(sys.exc_info())
-			logging.warning("Was not able to insert data for artist {} and genre {}.".format(artist_object['name'],genre_name)) 		
+	except pyodbc.IntegrityError:
+		logging.warning("Violation of PRIMARY KEY constraint for artist {} and genre {}.".format(artist_object['name'],genre_name))
+	except: 
+		logging.warning(sys.exc_info())
+		logging.warning("Was not able to insert data for artist and genre.") 		
 
 # populate genre table based on information from LastFM
 def populate_genre_table(artist_id, artist_name, genre):

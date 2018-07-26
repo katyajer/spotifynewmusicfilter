@@ -62,7 +62,7 @@ def populate_playlist_track(playlist_track, playlist_id):
 		logging.warning("Violation of PRIMARY KEY constraint for track {} in playlist {}.".format(playlist_track['track']['name'], playlist_id))
 	except: 
 		logging.warning(sys.exc_info())
-		logging.warning("Was not able to insert data for track {} in playlist {}.".format(playlist_track['track']['name'], playlist_id)) 
+		logging.warning("Was not able to insert data for track {} in playlist {}.".format(track_id, playlist_id)) 
 
 # populate track based on the track object		
 def populate_track(track_object):
@@ -93,7 +93,7 @@ def populate_track(track_object):
 		logging.warning("Violation of PRIMARY KEY constraint for track {} by {}.".format(track_name, track_object['artists'][0]['name']))
 	except: 
 		logging.warning(sys.exc_info())
-		logging.warning("Was not able to insert data for track {} by {}.".format(track_name, track_object['artists'][0]['name'])) 	
+		logging.warning("Was not able to insert data for track {} by {}.".format(track_id, track_object['artists'][0]['id'])) 	
 
 # populate artist based on the artist object			
 def populate_artist(artist_object):		
@@ -110,7 +110,7 @@ def populate_artist(artist_object):
 		logging.warning("Violation of PRIMARY KEY constraint for artist {}.".format(artist_name))
 	except: 
 		logging.warning(sys.exc_info())
-		logging.warning("Was not able to insert data for artist {}.".format(artist_name)) 		
+		logging.warning("Was not able to insert data for artist {}.".format(artist_id)) 		
 
 # populate genres based on the artist object			
 def populate_genre(artist_object):
@@ -135,7 +135,7 @@ def populate_genre(artist_object):
 			logging.warning("Violation of PRIMARY KEY constraint for artist {} and genre {}.".format(artist_object['name'],genre_name))
 		except: 
 			logging.warning(sys.exc_info())
-			logging.warning("Was not able to insert data for artist {} and genre {}.".format(artist_object['name'],genre_name)) 		
+			logging.warning("Was not able to insert data for artist {} and genre.".format(artist_object['id'],)) 		
 
 # send requests and populate genres based on the artist name from LastFM
 def popolate_genre_lastfm(artist_id,artist_name):
