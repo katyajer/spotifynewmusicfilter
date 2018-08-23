@@ -50,51 +50,64 @@ def populate_playlist(playlist_object):
 		
 # populate playlist track based on the playlist_id and track object
 def populate_playlist_track(playlist_track, playlist_id):
-	track_id = playlist_track['track']['id']	
-	is_local = playlist_track['is_local']
-	added_by = playlist_track['added_by']['id']
-	added_at = playlist_track['added_at']
-	try:        
+	try:  
+		track_id = playlist_track['track']['id']	
+		is_local = playlist_track['is_local']
+		added_by = playlist_track['added_by']['id']
+		added_at = playlist_track['added_at']      
 		cursor.execute("INSERT INTO PLAYLIST_TRACK (PLAYLIST_ID, TRACK_ID, IS_LOCAL, ADDED_BY, ADDED_AT) VALUES (?,?,?,?,?)", (playlist_id, track_id, is_local, added_by, added_at))
 		logging.info("Created new entry for playlist-track {} for playlist {}.".format(playlist_track['track']['name'], playlist_id)) 
 		cnxn.commit()
 	except pyodbc.IntegrityError:
-		logging.warning("Violation of PRIMARY KEY constraint for track {} in playlist {}.".format(playlist_track['track']['name'], playlist_id))
+		try:
+			logging.warning("Violation of PRIMARY KEY constraint for track {} in playlist {}.".format(playlist_track['track']['name'], playlist_id))
+		except:
+			logging.warning("Reuqest does not have track name specified.")
 	except: 
 		logging.warning(sys.exc_info())
-		logging.warning("Was not able to insert data for track {} in playlist {}.".format(track_id, playlist_id)) 
+		try:
+			logging.warning("Was not able to insert data for track {} in playlist {}.".format(track_id, playlist_id)) 
+		except:
+			logging.warning("Reuqest does not have track name specified.")
 
 # populate track based on the track object		
 def populate_track(track_object):
-	track_name = track_object['name']
-	track_id = track_object['id']
-	duration_ms = track_object['duration_ms']
-	explicit = track_object['explicit']
-	href = track_object['href']
-	popularity = track_object['popularity']
-	uri = track_object['uri']
-	album_id = track_object['album']['id']
-	artist_num = len(track_object['artists'])
-	artist_id = track_object['artists'][0]['id']
-	artist_id2 = None
-	artist_id3 = None
-	artist_id4 = None
-	if artist_num > 2:
-		artist_id2 = track_object['artists'][1]['id']
-	if artist_num > 3:
-		artist_id3 = track_object['artists'][2]['id']
-	if artist_num > 4:
-		artist_id4 = track_object['artists'][3]['id']
-	try:        
+	try:    
+		track_name = track_object['name']
+		track_id = track_object['id']
+		duration_ms = track_object['duration_ms']
+		explicit = track_object['explicit']
+		href = track_object['href']
+		popularity = track_object['popularity']
+		uri = track_object['uri']
+		album_id = track_object['album']['id']
+		artist_num = len(track_object['artists'])
+		artist_id = track_object['artists'][0]['id']
+		artist_id2 = None
+		artist_id3 = None
+		artist_id4 = None
+		if artist_num > 1:
+			artist_id2 = track_object['artists'][1]['id']
+		if artist_num > 2:
+			artist_id3 = track_object['artists'][2]['id']
+		if artist_num > 3:
+			artist_id4 = track_object['artists'][3]['id']
+			
 		cursor.execute("INSERT INTO TRACK (TRACK_NAME, TRACK_ID, duration_ms, EXPLICIT, HREF, POPULARITY, URI, ALBUM_ID, ARTIST_ID, ARTIST_ID2, ARTIST_ID3, ARTIST_ID4) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (track_name, track_id, duration_ms, explicit, href, popularity, uri, album_id, artist_id, artist_id2, artist_id3, artist_id4))
 		logging.info("Created new entry for track {} by {}.".format(track_name, track_object['artists'][0]['name'])) 
 		cnxn.commit()
 	except pyodbc.IntegrityError:
-		logging.warning("Violation of PRIMARY KEY constraint for track {} by {}.".format(track_name, track_object['artists'][0]['name']))
+		try:
+			logging.warning("Violation of PRIMARY KEY constraint for track {} by {}.".format(track_object['name'], track_object['artists'][0]['id']))
+		except:
+			logging.warning("Reuqest does not have track name or artist specified.")
 	except: 
 		logging.warning(sys.exc_info())
-		logging.warning("Was not able to insert data for track {} by {}.".format(track_id, track_object['artists'][0]['id'])) 	
-
+		try:
+			logging.warning("Was not able to insert data for track {} by {}.".format(track_object['id'], track_object['artists'][0]['id'])) 	
+		except:
+			logging.warning("Reuqest does not have track name or artist specified.")
+			
 # populate artist based on the artist object			
 def populate_artist(artist_object):		
 	artist_name = artist_object['name']
@@ -104,7 +117,7 @@ def populate_artist(artist_object):
 	uri= artist_object['uri']
 	try:        
 		cursor.execute("INSERT INTO ARTIST (ARTIST_NAME, ARTIST_ID, HREF, POPULARITY, URI) VALUES (?, ?, ?, ?, ?)", (artist_name, artist_id, href, popularity, uri))
-		logging.info("Created new entry for atist {}.".format(artist_name))  
+		logging.info("Created new entry for artist {}.".format(artist_name))  
 		cnxn.commit()
 	except pyodbc.IntegrityError:
 		logging.warning("Violation of PRIMARY KEY constraint for artist {}.".format(artist_name))
@@ -266,9 +279,8 @@ tracks_object = playlist_object['tracks']
 populate_playlist(playlist_object)
 
 for x in range(0, tracks_object['total']):
-	if x != 69:
-		populate_track(tracks_object['items'][x]['track'])
-		populate_playlist_track(tracks_object['items'][x],playlist_object['id'])
+	populate_track(tracks_object['items'][x]['track'])
+	populate_playlist_track(tracks_object['items'][x],playlist_object['id'])
 	
 # populate data about artists and genres
 # pick artist_ids from tracks that do not have an entry in the artists table yet
