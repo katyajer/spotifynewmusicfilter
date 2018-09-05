@@ -284,33 +284,9 @@ for x in range(0, tracks_object['total']):
 	
 # populate data about artists and genres
 # pick artist_ids from tracks that do not have an entry in the artists table yet
-sql_query = """WITH artist_table (artist_id_comb)
-				AS (
-					SELECT DISTINCT t.ARTIST_ID
-					FROM track t
-					WHERE t.ARTIST_ID IS NOT NULL
-					
-					UNION ALL
-					
-					SELECT DISTINCT t.ARTIST_ID2
-					FROM track t
-					WHERE t.ARTIST_ID2 IS NOT NULL
-					
-					UNION ALL
-					
-					SELECT DISTINCT t.ARTIST_ID3
-					FROM track t
-					WHERE t.ARTIST_ID3 IS NOT NULL
-					
-					UNION ALL
-					
-					SELECT DISTINCT t.ARTIST_ID4
-					FROM track t
-					WHERE t.ARTIST_ID4 IS NOT NULL
-					)
-				SELECT artist_id_comb
-				FROM artist_table
-				LEFT JOIN ARTIST a ON a.ARTIST_ID = artist_table.artist_id_comb
+sql_query = """SELECT artist_id_comb
+				FROM ARTIST_VIEW
+				LEFT JOIN ARTIST a ON a.ARTIST_ID = ARTIST_VIEW.artist_id_comb
 				WHERE a.ARTIST_ID IS NULL"""
 				
 rows = cursor.execute(sql_query).fetchall()
@@ -344,7 +320,7 @@ cursor.execute("""SELECT DISTINCT t.TRACK_ID
 							OR UPPER(ag.GENRE_ID) LIKE UPPER('%afrobeat%')
 							OR UPPER(ag.GENRE_ID) LIKE UPPER('%grime%')
 							)
-						AND pt.ADDED_AT > GETDATE() - 7
+						AND pt.ADDED_AT > NOW() - INTERVAL 7 DAY
 						AND pt.playlist_id = ?
 					""",(playlist_id))
 songs_to_add = []	
